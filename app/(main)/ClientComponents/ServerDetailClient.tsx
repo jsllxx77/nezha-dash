@@ -191,7 +191,67 @@ export default function ServerDetailClient({
             <section className="flex flex-col items-start gap-0.5">
               <p className="text-xs text-muted-foreground">{t("CPU")}</p>
               {data?.host.CPU ? (
-                <div className="text-xs"> {data?.host.CPU}</div>
+                <div className="text-xs"> {data?.host.CPU.join(", ")}</div>
+              ) : (
+                <div className="text-xs">Unknown</div>
+              )}
+            </section>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[10px] bg-transparent border-none shadow-none">
+          <CardContent className="px-1.5 py-1">
+            <section className="flex flex-col items-start gap-0.5">
+              <p className="text-xs text-muted-foreground">{"GPU"}</p>
+              {data?.host.GPU ? (
+                <div className="text-xs"> {data?.host.GPU.join(", ")}</div>
+              ) : (
+                <div className="text-xs">Unknown</div>
+              )}
+            </section>
+          </CardContent>
+        </Card>
+      </section>
+      <section className="flex flex-wrap gap-2 mt-1">
+        <Card className="rounded-[10px] bg-transparent border-none shadow-none">
+          <CardContent className="px-1.5 py-1">
+            <section className="flex flex-col items-start gap-0.5">
+              <p className="text-xs text-muted-foreground">{t("Load")}</p>
+              {data.status.NetInTransfer ? (
+                <div className="text-xs">
+                  {data.status.Load1.toFixed(2)} /{" "}
+                  {data.status.Load5.toFixed(2)} /{" "}
+                  {data.status.Load15.toFixed(2)}
+                </div>
+              ) : (
+                <div className="text-xs">Unknown</div>
+              )}
+            </section>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[10px] bg-transparent border-none shadow-none">
+          <CardContent className="px-1.5 py-1">
+            <section className="flex flex-col items-start gap-0.5">
+              <p className="text-xs text-muted-foreground">{t("Upload")}</p>
+              {data.status.NetOutTransfer ? (
+                <div className="text-xs">
+                  {" "}
+                  {formatBytes(data.status.NetOutTransfer)}{" "}
+                </div>
+              ) : (
+                <div className="text-xs">Unknown</div>
+              )}
+            </section>
+          </CardContent>
+        </Card>
+        <Card className="rounded-[10px] bg-transparent border-none shadow-none">
+          <CardContent className="px-1.5 py-1">
+            <section className="flex flex-col items-start gap-0.5">
+              <p className="text-xs text-muted-foreground">{t("Download")}</p>
+              {data.status.NetInTransfer ? (
+                <div className="text-xs">
+                  {" "}
+                  {formatBytes(data.status.NetInTransfer)}{" "}
+                </div>
               ) : (
                 <div className="text-xs">Unknown</div>
               )}
