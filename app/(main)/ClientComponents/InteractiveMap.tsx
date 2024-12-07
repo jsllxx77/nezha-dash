@@ -1,9 +1,10 @@
 "use client";
 
+import { countryCoordinates } from "@/lib/geo-limit";
 import { geoEquirectangular, geoPath } from "d3-geo";
-import { AnimatePresence, m } from "framer-motion";
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+
+import MapTooltip from "./MapTooltip";
+import { useTooltip } from "./TooltipContext";
 
 interface InteractiveMapProps {
   countries: string[];
@@ -11,6 +12,7 @@ interface InteractiveMapProps {
   width: number;
   height: number;
   filteredFeatures: any[];
+  nezhaServerList: any;
 }
 
 export function InteractiveMap({
@@ -19,14 +21,9 @@ export function InteractiveMap({
   width,
   height,
   filteredFeatures,
+  nezhaServerList,
 }: InteractiveMapProps) {
-  const t = useTranslations("Global");
-
-  const [tooltipData, setTooltipData] = useState<{
-    centroid: [number, number];
-    country: string;
-    count: number;
-  } | null>(null);
+  const { setTooltipData } = useTooltip();
 
   const projection = geoEquirectangular()
     .scale(140)
@@ -36,7 +33,10 @@ export function InteractiveMap({
   const path = geoPath().projection(projection);
 
   return (
-    <div className="relative w-full aspect-[2/1]">
+    <div
+      className="relative w-full aspect-[2/1]"
+      onMouseLeave={() => setTooltipData(null)}
+    >
       <svg
         width={width}
         height={height}
@@ -50,6 +50,15 @@ export function InteractiveMap({
           </pattern>
         </defs>
         <g>
+          {/* Background rect to handle mouse events in empty areas */}
+          <rect
+            x="0"
+            y="0"
+            width={width}
+            height={height}
+            fill="transparent"
+            onMouseEnter={() => setTooltipData(null)}
+          />
           {filteredFeatures.map((feature, index) => {
             const isHighlighted = countries.includes(
               feature.properties.iso_a2_eh,
@@ -67,44 +76,90 @@ export function InteractiveMap({
                 d={path(feature) || ""}
                 className={
                   isHighlighted
-                    ? "fill-orange-500 hover:fill-orange-300 stroke-orange-500 dark:stroke-amber-900  dark:fill-amber-900 dark:hover:fill-amber-700 transition-all cursor-pointer"
+                    ? "fill-green-700 hover:fill-green-600    dark:fill-green-900 dark:hover:fill-green-700 transition-all cursor-pointer"
                     : "fill-neutral-200/50 dark:fill-neutral-800 stroke-neutral-300/40 dark:stroke-neutral-700 stroke-[0.5]"
                 }
                 onMouseEnter={() => {
-                  if (isHighlighted && path.centroid(feature)) {
+                  if (!isHighlighted) {
+                    setTooltipData(null);
+                    return;
+                  }
+                  if (path.centroid(feature)) {
+                    const countryCode = feature.properties.iso_a2_eh;
+                    const countryServers = nezhaServerList.result
+                      .filter(
+                        (server: any) =>
+                          server.host.CountryCode?.toUpperCase() ===
+                          countryCode,
+                      )
+                      .map((server: any) => ({
+                        name: server.name,
+                        status: server.online_status,
+                      }));
                     setTooltipData({
                       centroid: path.centroid(feature),
                       country: feature.properties.name,
                       count: serverCount,
+                      servers: countryServers,
                     });
                   }
                 }}
-                onMouseLeave={() => setTooltipData(null)}
               />
+            );
+          })}
+
+          {/* 渲染不在 filteredFeatures 中的国家标记点 */}
+          {countries.map((countryCode) => {
+            // 检查该国家是否已经在 filteredFeatures 中
+            const isInFilteredFeatures = filteredFeatures.some(
+              (feature) => feature.properties.iso_a2_eh === countryCode,
+            );
+
+            // 如果已经在 filteredFeatures 中，跳过
+            if (isInFilteredFeatures) return null;
+
+            // 获取国家的经纬度
+            const coords = countryCoordinates[countryCode];
+            if (!coords) return null;
+
+            // 使用投影函数将经纬度转换为 SVG 坐标
+            const [x, y] = projection([coords.lng, coords.lat]) || [0, 0];
+            const serverCount = serverCounts[countryCode] || 0;
+
+            return (
+              <g
+                key={countryCode}
+                onMouseEnter={() => {
+                  const countryServers = nezhaServerList.result
+                    .filter(
+                      (server: any) =>
+                        server.host.CountryCode?.toUpperCase() === countryCode,
+                    )
+                    .map((server: any) => ({
+                      name: server.name,
+                      status: server.online_status,
+                    }));
+                  setTooltipData({
+                    centroid: [x, y],
+                    country: coords.name,
+                    count: serverCount,
+                    servers: countryServers,
+                  });
+                }}
+                className="cursor-pointer"
+              >
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={4}
+                  className="fill-sky-700 stroke-white hover:fill-sky-600 dark:fill-sky-900 dark:hover:fill-sky-700 transition-all"
+                />
+              </g>
             );
           })}
         </g>
       </svg>
-      <AnimatePresence mode="wait">
-        {tooltipData && (
-          <m.div
-            initial={{ opacity: 0, filter: "blur(10px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            className="absolute hidden lg:block pointer-events-none bg-white dark:bg-neutral-800 px-2 py-1 rounded shadow-lg text-sm dark:border dark:border-neutral-700"
-            key={tooltipData.country}
-            style={{
-              left: tooltipData.centroid[0],
-              top: tooltipData.centroid[1],
-              transform: "translate(-50%, -50%)",
-            }}
-          >
-            <p className="font-medium">{tooltipData.country}</p>
-            <p className="text-neutral-600 dark:text-neutral-400">
-              {tooltipData.count} {t("Servers")}
-            </p>
-          </m.div>
-        )}
-      </AnimatePresence>
+      <MapTooltip />
     </div>
   );
 }
