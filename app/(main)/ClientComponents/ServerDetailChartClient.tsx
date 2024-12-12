@@ -5,8 +5,12 @@ import { NezhaAPISafe, ServerApi } from "@/app/types/nezha-api";
 import AnimatedCircularProgressBar from "@/components/ui/animated-circular-progress-bar";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
-import getEnv from "@/lib/env-entry";
-import { formatNezhaInfo, formatRelativeTime, nezhaFetcher } from "@/lib/utils";
+import {
+  formatBytes,
+  formatNezhaInfo,
+  formatRelativeTime,
+  nezhaFetcher,
+} from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
@@ -18,7 +22,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
 
 type cpuChartData = {
@@ -56,7 +59,6 @@ type connectChartData = {
 
 export default function ServerDetailChartClient({
   server_id,
-  show,
 }: {
   server_id: number;
   show: boolean;
@@ -71,15 +73,11 @@ export default function ServerDetailChartClient({
     (item) => item.id === server_id,
   );
 
-  const { data, error } = useSWR<NezhaAPISafe>(
+  const { data, error } = useSWRImmutable<NezhaAPISafe>(
     `/api/detail?server_id=${server_id}`,
     nezhaFetcher,
     {
-      refreshInterval: Number(getEnv("NEXT_PUBLIC_NezhaFetchInterval")) || 5000,
-      isVisible: () => show,
       fallbackData,
-      revalidateOnMount: false,
-      revalidateIfStale: false,
     },
   );
 
@@ -339,7 +337,7 @@ function MemChart({ data }: { data: NezhaAPISafe }) {
     <Card>
       <CardContent className="px-6 py-3">
         <section className="flex flex-col gap-1">
-          <div className="flex items-center">
+          <div className="flex items-center justify-between">
             <section className="flex items-center gap-4">
               <div className="flex flex-col">
                 <p className=" text-xs text-muted-foreground">{t("Mem")}</p>
@@ -366,6 +364,15 @@ function MemChart({ data }: { data: NezhaAPISafe }) {
                   />
                   <p className="text-xs font-medium">{swap.toFixed(0)}%</p>
                 </div>
+              </div>
+            </section>
+            <section className="flex flex-col items-end gap-0.5">
+              <div className="flex text-[11px] font-medium items-center gap-2">
+                {formatBytes(data.status.MemUsed)} /{" "}
+                {formatBytes(data.host.MemTotal)}
+              </div>
+              <div className="flex text-[11px] font-medium items-center gap-2">
+                swap: {formatBytes(data.status.SwapUsed)}
               </div>
             </section>
           </div>
@@ -462,17 +469,23 @@ function DiskChart({ data }: { data: NezhaAPISafe }) {
         <section className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
             <p className="text-md font-medium">{t("Disk")}</p>
-            <section className="flex items-center gap-2">
-              <p className="text-xs text-end w-10 font-medium">
-                {disk.toFixed(0)}%
-              </p>
-              <AnimatedCircularProgressBar
-                className="size-3 text-[0px]"
-                max={100}
-                min={0}
-                value={disk}
-                primaryColor="hsl(var(--chart-5))"
-              />
+            <section className="flex flex-col items-end gap-0.5">
+              <section className="flex items-center gap-2">
+                <p className="text-xs text-end w-10 font-medium">
+                  {disk.toFixed(0)}%
+                </p>
+                <AnimatedCircularProgressBar
+                  className="size-3 text-[0px]"
+                  max={100}
+                  min={0}
+                  value={disk}
+                  primaryColor="hsl(var(--chart-5))"
+                />
+              </section>
+              <div className="flex text-[11px] font-medium items-center gap-2">
+                {formatBytes(data.status.DiskUsed)} /{" "}
+                {formatBytes(data.host.DiskTotal)}
+              </div>
             </section>
           </div>
           <ChartContainer
